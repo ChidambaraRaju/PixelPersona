@@ -9,7 +9,11 @@ def temp_data_dir():
     """Temporary directory for test data."""
     temp_dir = Path(tempfile.mkdtemp())
     yield temp_dir
-    shutil.rmtree(temp_dir)
+    # On Windows, Chroma's sqlite may keep files open - ignore cleanup errors
+    try:
+        shutil.rmtree(temp_dir)
+    except (PermissionError, OSError):
+        pass  # Ignore cleanup errors on Windows
 
 @pytest.fixture
 def sample_persona_data():
