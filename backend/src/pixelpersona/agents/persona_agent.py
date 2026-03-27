@@ -1,4 +1,5 @@
 """LangGraph ReAct agent per persona with SummarizationMiddleware."""
+import logging
 from typing import List, Dict, Any
 from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
@@ -12,6 +13,10 @@ from pixelpersona.config import (
     REPHRASER_MODEL,
     PERSONA_AGENT_PROMPT_TEMPLATE
 )
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 class PersonaAgent:
     """ReAct agent for a specific persona with memory summarization."""
@@ -53,6 +58,11 @@ class PersonaAgent:
             """
             import asyncio
 
+            logger.info("\n" + "="*60)
+            logger.info("[TOOL CALL] retrieve_context")
+            logger.info("="*60)
+            logger.info(f"  Query sent to retriever: {query}")
+
             # Run the async retriever in sync context
             try:
                 loop = asyncio.get_event_loop()
@@ -68,8 +78,19 @@ class PersonaAgent:
                 )
             )
 
+            logger.info(f"  Retrieved: {len(results)} chunks")
+
             if not results:
+                logger.info("  No relevant context found.")
                 return "No relevant context found for this query."
+
+            # Log each chunk
+            for i, r in enumerate(results, 1):
+                content = r.get("content", "")
+                metadata = r.get("metadata", {})
+                source = metadata.get("source_type", "unknown")
+                title = metadata.get("title", "unknown")
+                logger.info(f"  Chunk {i}: [{source}] {title} ({len(content)} chars)")
 
             # Format context with sources
             formatted = []
@@ -78,6 +99,10 @@ class PersonaAgent:
                 metadata = r.get("metadata", {})
                 source = metadata.get("source_type", "unknown")
                 formatted.append(f"Source: {source}\nContent: {content}")
+
+            logger.info("="*60)
+            logger.info("[TOOL RESULT] retrieve_context completed")
+            logger.info("="*60 + "\n")
 
             return "\n\n---\n\n".join(formatted)
 
