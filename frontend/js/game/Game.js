@@ -1,4 +1,5 @@
 import { World } from './World.js';
+import { Player } from './Player.js';
 
 export class Game {
     constructor(canvasId) {
@@ -9,6 +10,7 @@ export class Game {
         this.running = false;
         this.lastTime = 0;
         this.world = new World(this.ctx);
+        this.player = new Player(this.ctx, 400, 300);
     }
 
     start() {
@@ -33,10 +35,11 @@ export class Game {
     }
 
     update(dt) {
-        // Override in subclasses
+        this.player.update(dt);
     }
 
     render() {
         this.world.render();
+        this.player.render();
     }
 }
