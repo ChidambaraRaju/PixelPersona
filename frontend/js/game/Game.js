@@ -1,3 +1,5 @@
+import { World } from './World.js';
+
 export class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -6,6 +8,7 @@ export class Game {
         this.canvas.height = 600;
         this.running = false;
         this.lastTime = 0;
+        this.world = new World(this.ctx);
     }
 
     start() {
@@ -34,6 +37,6 @@ export class Game {
     }
 
     render() {
-        // Override in subclasses
+        this.world.render();
     }
 }
