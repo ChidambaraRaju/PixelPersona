@@ -1,5 +1,6 @@
 import { World } from './World.js';
 import { Player } from './Player.js';
+import { NPCManager } from './NPCManager.js';
 
 export class Game {
     constructor(canvasId) {
@@ -11,6 +12,24 @@ export class Game {
         this.lastTime = 0;
         this.world = new World(this.ctx);
         this.player = new Player(this.ctx, 400, 300);
+        this.npcManager = new NPCManager(this.ctx);
+        this.initNPCs();
+    }
+
+    async initNPCs() {
+        try {
+            const response = await fetch('http://localhost:8000/personas');
+            const data = await response.json();
+            this.npcManager.init(Object.entries(data.personas).map(([name, desc]) => ({ name, description: desc })));
+        } catch (e) {
+            // Fallback if API not available
+            this.npcManager.init([
+                { name: 'Albert Einstein', description: 'German-born theoretical physicist' },
+                { name: 'Nikola Tesla', description: 'Inventor and electrical engineer' },
+                { name: 'APJ Abdul Kalam', description: 'Aerospace scientist' },
+                { name: 'Mahatma Gandhi', description: 'Indian independence leader' }
+            ]);
+        }
     }
 
     start() {
@@ -36,10 +55,12 @@ export class Game {
 
     update(dt) {
         this.player.update(dt);
+        this.npcManager.update(dt);
     }
 
     render() {
         this.world.render();
+        this.npcManager.render();
         this.player.render();
     }
 }
