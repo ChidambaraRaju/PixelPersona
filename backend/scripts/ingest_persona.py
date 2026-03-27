@@ -12,7 +12,7 @@ from langchain_core.documents import Document
 
 from pixelpersona.scraping.wikipedia import WikipediaScraper
 from pixelpersona.scraping.wikiquote import WikiquoteScraper
-from pixelpersona.scraping.gutenberg import GutenbergScraper
+from pixelpersona.scraping.primary_source import PrimarySourceScraper
 from pixelpersona.processing.chunker import PersonaChunker
 from pixelpersona.processing.embedder import LocalEmbedder
 from pixelpersona.processing.validator import DataValidator
@@ -55,7 +55,7 @@ def ingest_persona(persona_name: str):
     scrapers = {
         "wikipedia": WikipediaScraper(),
         "wikiquote": WikiquoteScraper(),
-        "gutenberg": GutenbergScraper()
+        "gutenberg": PrimarySourceScraper()
     }
     chunker = PersonaChunker()
     embedder = LocalEmbedder()

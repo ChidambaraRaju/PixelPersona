@@ -2,7 +2,7 @@
 import pytest
 from pixelpersona.scraping.wikipedia import WikipediaScraper
 from pixelpersona.scraping.wikiquote import WikiquoteScraper
-from pixelpersona.scraping.gutenberg import GutenbergScraper
+from pixelpersona.scraping.primary_source import PrimarySourceScraper
 
 @pytest.fixture
 def wikipedia_scraper():
@@ -13,8 +13,8 @@ def wikiquote_scraper():
     return WikiquoteScraper()
 
 @pytest.fixture
-def gutenberg_scraper():
-    return GutenbergScraper()
+def primary_source_scraper():
+    return PrimarySourceScraper()
 
 def test_wikipedia_scraper_returns_content(wikipedia_scraper):
     """Test that Wikipedia scraper returns expected structure."""
@@ -42,8 +42,8 @@ def test_wikiquote_scraper_unknown_person(wikiquote_scraper):
     assert result["content"] == ""
     assert result["url"] == ""
 
-def test_gutenberg_scraper_returns_structure(gutenberg_scraper):
-    """Test that Gutenberg scraper returns expected structure."""
-    result = gutenberg_scraper.scrape("Albert Einstein")
+def test_primary_source_scraper_returns_structure(primary_source_scraper):
+    """Test that PrimarySource scraper returns expected structure."""
+    result = primary_source_scraper.scrape("Albert Einstein")
     assert "content" in result
     assert "url" in result

@@ -1,16 +1,17 @@
-"""Gutenberg/Archive.org scraper with full text extraction."""
+"""Primary source scraper for Gutenberg and Archive.org."""
 import re
 import httpx
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 USER_AGENT = "PixelPersona/1.0 (RAG chatbot project; mailto:example@example.com)"
 MAX_CONTENT_LENGTH = 500_000  # Limit to 500K chars to avoid memory issues
 FETCH_TIMEOUT = 30  # Max seconds to wait for content fetch (non-blocking)
 
-class GutenbergScraper:
-    """Scrapes autobiographies and primary sources from Gutenberg or Archive.org.
+class PrimarySourceScraper:
+    """Scrapes primary source writings from Gutenberg or Archive.org.
 
-    Fetches actual text content, not just metadata.
+    Fetches actual text content (books, autobiographies, writings) by the persona.
+    Non-blocking: returns empty content gracefully if fetch times out.
     """
 
     def scrape(self, persona_name: str, timeout: int = FETCH_TIMEOUT) -> Dict[str, Any]:
