@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""CLI script to ingest a persona into Chroma using langchain_chroma."""
+"""CLI script to ingest a persona into Chroma from local raw data files.
+
+Reads all files from data/raw/{persona}/ and ingests them into Chroma.
+Supports JSON files (scraped Wikipedia/Wikiquote) and plain text files (manual downloads).
+"""
 import argparse
 import json
 from pathlib import Path
@@ -10,118 +14,120 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from langchain_core.documents import Document
 
-from pixelpersona.scraping.wikipedia import WikipediaScraper
-from pixelpersona.scraping.wikiquote import WikiquoteScraper
-from pixelpersona.scraping.primary_source import PrimarySourceScraper
 from pixelpersona.processing.chunker import PersonaChunker
 from pixelpersona.processing.embedder import LocalEmbedder
 from pixelpersona.processing.validator import DataValidator
 from pixelpersona.storage.chroma_client import ChromaCollectionManager
 from pixelpersona.config import RAW_DATA_DIR
 
-def save_raw_content(persona_name: str, source_name: str, result: dict):
-    """Save raw scraped content to data/raw/{persona}/{source}.json"""
-    raw_dir = RAW_DATA_DIR / persona_name.replace(" ", "_")
-    raw_dir.mkdir(parents=True, exist_ok=True)
 
-    output_file = raw_dir / f"{source_name}.json"
+def load_raw_files(persona_dir: Path) -> list[tuple[str, dict]]:
+    """Load all raw data files from persona directory.
 
-    # Prepare sections for JSON serialization
-    sections = result.get("sections", {})
-    # Convert section keys to list if needed
-    sections_data = {
-        "section_titles": list(sections.keys()) if isinstance(sections, dict) else [],
-        "total_sections": len(sections) if isinstance(sections, dict) else 0,
-        "sections_content": sections
-    }
+    Returns list of (filename, data) tuples for JSON files,
+    and (filename, data) for text files with content in 'content' field.
+    """
+    files_data = []
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump({
-            "persona": persona_name,
-            "source": source_name,
-            "url": result.get("url", ""),
-            "title": result.get("title", ""),
-            "content": result.get("content", ""),
-            "sections": sections_data
-        }, f, indent=2, ensure_ascii=False)
+    if not persona_dir.exists():
+        return files_data
 
-    return output_file
+    for file_path in persona_dir.iterdir():
+        if file_path.suffix == ".json":
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                files_data.append((file_path.stem, data))
+        elif file_path.suffix == ".txt":
+            # Plain text file (manual download from Gutenberg/Archive.org)
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+                # Remove UTF-8 BOM if present
+                if content and ord(content[0]) == 0xFEFF:
+                    content = content[1:]
+                data = {
+                    "persona": persona_dir.name.replace("_", " "),
+                    "source": "primary_source",
+                    "title": file_path.stem,
+                    "content": content
+                }
+                files_data.append((file_path.stem, data))
+
+    return files_data
+
 
 def ingest_persona(persona_name: str):
-    """Ingest a persona from all sources into Chroma and save raw data."""
+    """Ingest a persona from raw data files into Chroma."""
     print(f"Starting ingestion for: {persona_name}")
 
     # Initialize components
-    scrapers = {
-        "wikipedia": WikipediaScraper(),
-        "wikiquote": WikiquoteScraper(),
-        "gutenberg": PrimarySourceScraper()
-    }
     chunker = PersonaChunker()
     embedder = LocalEmbedder()
     validator = DataValidator()
     collection_manager = ChromaCollectionManager(embedding_function=embedder)
 
-    all_documents = []
-    raw_files_saved = []
+    # Load raw data directory
+    persona_dir = RAW_DATA_DIR / persona_name.replace(" ", "_")
 
-    # Create raw data directory for this persona
-    raw_persona_dir = RAW_DATA_DIR / persona_name.replace(" ", "_")
-    raw_persona_dir.mkdir(parents=True, exist_ok=True)
+    # Load all raw files
+    raw_files = load_raw_files(persona_dir)
 
-    # Scrape from each source
-    for source_name, scraper in scrapers.items():
-        print(f"Scraping from {source_name}...")
-        try:
-            result = scraper.scrape(persona_name)
-            if result and result.get("content"):
-                # Minimal validation
-                if not validator.validate_content(result["content"]):
-                    print(f"  {source_name}: Content validation failed, skipping")
-                    continue
-
-                # Save raw content
-                raw_file = save_raw_content(persona_name, source_name, result)
-                raw_files_saved.append(str(raw_file))
-                print(f"  {source_name}: Raw content saved to {raw_file}")
-
-                # Create LangChain Document and chunk
-                doc = Document(
-                    page_content=result["content"],
-                    metadata={
-                        "source_type": source_name,
-                        "source_url": result.get("url", ""),
-                        "section": result.get("title", f"{source_name} section"),
-                        "persona": persona_name
-                    }
-                )
-
-                # Chunk the document with persona metadata
-                chunks = chunker.chunk_documents(
-                    [doc],
-                    metadata_updates={"persona": persona_name}
-                )
-
-                all_documents.extend(chunks)
-                print(f"  {source_name}: {len(chunks)} chunks created")
-        except Exception as e:
-            print(f"  {source_name}: Error - {e}")
-
-    if not all_documents:
-        print("No content scraped. Ingestion failed.")
+    if not raw_files:
+        print(f"No raw data found in {persona_dir}")
         return
 
-    # Store in Chroma (langchain_chroma handles embedding internally)
-    print(f"Embedding and storing {len(all_documents)} chunks in Chroma...")
+    print(f"Found {len(raw_files)} raw data files:")
+    for filename, data in raw_files:
+        print(f"  - {filename}: {len(data.get('content', ''))} chars")
+
+    all_documents = []
+
+    # Process each file
+    for source_name, data in raw_files:
+        content = data.get("content", "")
+
+        if not content:
+            print(f"  {source_name}: No content, skipping")
+            continue
+
+        # Validate content
+        if not validator.validate_content(content):
+            print(f"  {source_name}: Content validation failed, skipping")
+            continue
+
+        # Create LangChain Document
+        doc = Document(
+            page_content=content,
+            metadata={
+                "source_type": data.get("source", "unknown"),
+                "source_url": data.get("url", ""),
+                "title": data.get("title", source_name),
+                "persona": persona_name
+            }
+        )
+
+        # Chunk the document
+        chunks = chunker.chunk_documents(
+            [doc],
+            metadata_updates={"persona": persona_name}
+        )
+
+        all_documents.extend(chunks)
+        print(f"  {source_name}: {len(chunks)} chunks created")
+
+    if not all_documents:
+        print("No content to ingest. Ingestion failed.")
+        return
+
+    # Store in Chroma
+    print(f"\nEmbedding and storing {len(all_documents)} chunks in Chroma...")
     collection_manager.add_documents(persona_name, all_documents)
 
     print(f"\nIngestion complete for {persona_name}!")
-    print(f"Raw data saved to: {raw_persona_dir}")
-    print(f"Files saved: {len(raw_files_saved)}")
-    print(f"Chunks stored in Chroma: {len(all_documents)}")
+    print(f"Total chunks stored in Chroma: {len(all_documents)}")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ingest a persona into Chroma")
+    parser = argparse.ArgumentParser(description="Ingest a persona into Chroma from raw data files")
     parser.add_argument("persona_name", help="Name of the persona to ingest")
     args = parser.parse_args()
     ingest_persona(args.persona_name)
