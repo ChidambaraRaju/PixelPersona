@@ -1,9 +1,10 @@
 import { World } from './World.js';
 import { Player } from './Player.js';
 import { NPCManager } from './NPCManager.js';
+import { Interaction } from './Interaction.js';
 
 export class Game {
-    constructor(canvasId) {
+    constructor(canvasId, onNPCInteract) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.canvas.width = 800;
@@ -13,7 +14,19 @@ export class Game {
         this.world = new World(this.ctx);
         this.player = new Player(this.ctx, 400, 300);
         this.npcManager = new NPCManager(this.ctx);
+        this.onInteractCallback = onNPCInteract;
+        this.interaction = new Interaction(this.player, this.npcManager, (npc) => this.onNPCInteract(npc));
         this.initNPCs();
+    }
+
+    onNPCInteract(npc) {
+        if (this.onInteractCallback) {
+            this.onInteractCallback(npc);
+        }
+    }
+
+    setOnInteractCallback(cb) {
+        this.onInteractCallback = cb;
     }
 
     async initNPCs() {
@@ -56,11 +69,13 @@ export class Game {
     update(dt) {
         this.player.update(dt);
         this.npcManager.update(dt);
+        this.interaction.update();
     }
 
     render() {
         this.world.render();
         this.npcManager.render();
         this.player.render();
+        this.interaction.render(this.ctx);
     }
 }
