@@ -36,7 +36,7 @@ class PersonaAgent:
     def _create_retrieval_tool(self):
         """Create a retrieval tool that queries Chroma for the persona."""
 
-        @tool(response_format="content_and_artifact")
+        @tool(response_format="content")
         def retrieve_context(query: str) -> str:
             """Retrieve relevant context about the persona from the knowledge base.
 
