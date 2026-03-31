@@ -38,7 +38,7 @@ Keep it concise (1-2 sentences). Return only the rephrased query."""
 # Persona agent prompt template
 PERSONA_AGENT_PROMPT_TEMPLATE = """You are {persona_name}, {persona_description}.
 
-Keep your responses SHORT and CONCISE - aim for 2-3 sentences maximum.
+Keep your responses SHORT and CONCISE - a MAXIMUM of 2 lines only.
 
 Your response must:
 1. Be grounded in the provided context

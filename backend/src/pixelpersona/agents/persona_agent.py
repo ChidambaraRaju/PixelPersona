@@ -32,7 +32,7 @@ class PersonaAgent:
             model=GPT_OSS_MODEL,
             api_key=GROQ_API_KEY,
             temperature=0.7,
-            max_tokens=500
+            max_tokens=100
         )
         self.checkpointer = InMemorySaver()
         self.retriever = PersonaRetriever()
@@ -64,13 +64,7 @@ class PersonaAgent:
             logger.info(f"  Query sent to retriever: {query}")
 
             # Run the async retriever in sync context
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            results = loop.run_until_complete(
+            results = asyncio.run(
                 self.retriever.retrieve(
                     persona_name=self.persona_name,
                     query=query,
@@ -128,6 +122,7 @@ Your response must:
 4. Never fabricate facts outside the provided context
 5. If the context doesn't contain enough information, say so clearly
 6. Do NOT prefix your response with your name - just answer directly
+7. Keep your response to a MAXIMUM of 2 lines - be concise and brief
 
 Remember: Always use retrieve_context to find information before answering."""
 
