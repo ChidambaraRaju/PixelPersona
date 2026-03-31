@@ -32,7 +32,7 @@ class PersonaAgent:
             model=GPT_OSS_MODEL,
             api_key=GROQ_API_KEY,
             temperature=0.7,
-            max_tokens=100
+            max_tokens=500
         )
         self.checkpointer = InMemorySaver()
         self.retriever = PersonaRetriever()
