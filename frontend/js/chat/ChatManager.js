@@ -1,84 +1,237 @@
-import { chatStream } from '../api/client.js';
+import { chatStream } from '../../api/client.js';
 
 export class ChatManager {
     constructor() {
-        this.modal = document.getElementById('chat-modal');
-        this.messagesContainer = document.getElementById('chat-messages');
-        this.input = document.getElementById('chat-input');
-        this.sendBtn = document.getElementById('chat-send');
-        this.closeBtn = document.getElementById('chat-close');
-        this.personaName = null;
+        // DOM references
+        this.dialogBox     = document.getElementById('dialog-box');
+        this.portraitCvs  = document.getElementById('portrait-canvas');
+        this.dialogName   = document.getElementById('dialog-name');
+        this.messageLog   = document.getElementById('message-log');
+        this.dialogContinue = document.getElementById('dialog-continue');
+        this.dialogInput  = document.getElementById('dialog-input');
+        this.dialogSend   = document.getElementById('dialog-send');
 
-        this.setupEventListeners();
+        // State
+        this.isDialogOpen  = false;
+        this.currentNPC    = null;
+        this.typewriterSpeed = 28;  // chars per second
+        this.typewriterTimer = null;
+        this.currentFullText = '';
+        this.displayedText   = '';
+        this.textComplete    = true;
+        this.textQueue        = [];
+
+        // Stream state
+        this.streamActive    = false;
+        this.currentMsgEl    = null;   // active streaming message element
+
+        this._setupEvents();
     }
 
-    setupEventListeners() {
-        this.sendBtn.addEventListener('click', () => this.sendMessage());
-        this.input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this.sendMessage();
+    _setupEvents() {
+        this.dialogSend.addEventListener('click', () => this._submitInput());
+
+        this.dialogInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this._submitInput();
+            }
+            if (e.key === ' ') {
+                e.stopPropagation();
+            }
         });
-        this.closeBtn.addEventListener('click', () => this.close());
+
+        // Space to continue / close
+        window.addEventListener('keydown', (e) => {
+            if (!this.isDialogOpen) return;
+            if (e.code !== 'Space') return;
+            e.preventDefault();
+
+            if (!this.textComplete) {
+                this._skipTypewriter();
+            } else if (this.textQueue.length === 0 && !this.streamActive) {
+                this.close();
+            }
+        });
     }
 
-    open(personaName) {
-        this.personaName = personaName;
-        this.messagesContainer.innerHTML = '';
-        this.modal.classList.remove('hidden');
-        this.input.focus();
+    open(npc) {
+        this.currentNPC = npc;
+        this.isDialogOpen = true;
+        this.textQueue = [];
+        this.streamActive = false;
+        this.messageLog.innerHTML = '';
 
-        // Add welcome message
-        this.addMessage('system', `Chat started with ${personaName}. Ask anything!`);
+        // Portrait
+        const pctx = this.portraitCvs.getContext('2d');
+        npc.drawPortrait(pctx);
+
+        // Name in header
+        this.dialogName.textContent = npc.name;
+
+        // Show dialog
+        this.dialogBox.classList.remove('hidden');
+        this.dialogContinue.classList.add('hidden');
+        this.dialogInput.value = '';
+        this.dialogInput.focus();
+
+        if (window.soundManager) window.soundManager.play('chat');
+
+        // Welcome greeting
+        this._enqueueMessage(npc.name, `Greetings, traveler. I am ${npc.name}. ${npc.description} Ask me anything.`);
     }
 
     close() {
-        this.modal.classList.add('hidden');
-        this.personaName = null;
+        this.isDialogOpen = false;
+        this.currentNPC = null;
+        this._clearTypewriter();
+        this.textQueue = [];
+        this.dialogBox.classList.add('hidden');
+        if (window.soundManager) window.soundManager.play('chat');
     }
 
-    addMessage(type, content) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `chat-message ${type}`;
-        msgDiv.textContent = content;
-        this.messagesContainer.appendChild(msgDiv);
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    isDialogOpen() {
+        return this.isDialogOpen;
     }
 
-    sendMessage() {
-        const message = this.input.value.trim();
-        if (!message || !this.personaName) return;
+    _submitInput() {
+        if (!this.isDialogOpen || this.streamActive) return;
 
-        this.input.value = '';
+        const message = this.dialogInput.value.trim();
+        if (!message) return;
 
-        // Add user message
-        this.addMessage('user', message);
+        this.dialogInput.value = '';
 
-        // Add typing indicator
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'chat-message persona typing';
-        typingDiv.textContent = '...';
-        this.messagesContainer.appendChild(typingDiv);
+        if (!this.textComplete) {
+            this._skipTypewriter();
+            this.textQueue.push({ type: 'send', text: message });
+            return;
+        }
 
-        // Stream response
+        // Add user message to log
+        this._addUserMessage(message);
+        this._streamPersonaResponse(message);
+    }
+
+    _addUserMessage(text) {
+        const el = document.createElement('div');
+        el.className = 'dialog-msg msg-user';
+        el.innerHTML = `<div class="msg-name">YOU</div><div>「 ${this._escapeHtml(text)} 」</div>`;
+        this.messageLog.appendChild(el);
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    _addPersonaMessage(name) {
+        const el = document.createElement('div');
+        el.className = 'dialog-msg msg-persona';
+        el.innerHTML = `<div class="msg-name">${this._escapeHtml(name)}</div><div class="persona-text"></div>`;
+        this.messageLog.appendChild(el);
+        return el;
+    }
+
+    _escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    _enqueueMessage(name, text) {
+        const el = this._addPersonaMessage(name);
+        this.currentMsgEl = el;
+        const textEl = el.querySelector('.persona-text');
+        this.currentFullText = text;
+        this.displayedText = '';
+        this.textComplete = false;
+        this._startTypewriter(textEl);
+    }
+
+    _streamPersonaResponse(message) {
+        if (!this.currentNPC) return;
+
+        this.streamActive = true;
+        this.dialogContinue.classList.add('hidden');
+
+        const el = this._addPersonaMessage(this.currentNPC.name);
+        this.currentMsgEl = el;
+        const textEl = el.querySelector('.persona-text');
+
+        this.currentFullText = '';
+        this.displayedText = '';
+        this.textComplete = false;
+
         chatStream(
-            this.personaName,
+            this.currentNPC.name,
             message,
             (chunk) => {
-                // Remove typing indicator on first chunk
-                if (typingDiv.parentNode) {
-                    typingDiv.remove();
-                }
-                // Append chunk
-                this.addMessage('persona', chunk);
+                this.currentFullText += chunk;
+                textEl.textContent = this.currentFullText;
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             },
             () => {
-                // Done
-                if (typingDiv.parentNode) typingDiv.remove();
+                this.streamActive = false;
+                this.textComplete = true;
+                this.dialogContinue.classList.remove('hidden');
+                this._processQueue();
             },
             (error) => {
-                // Error
-                if (typingDiv.parentNode) typingDiv.remove();
-                this.addMessage('error', error);
+                this.streamActive = false;
+                this.textComplete = true;
+                textEl.textContent = `[Error: ${error}]`;
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                this.dialogContinue.classList.remove('hidden');
             }
         );
+    }
+
+    _startTypewriter(textEl) {
+        this._clearTypewriter();
+        let charIndex = 0;
+
+        const tick = () => {
+            if (charIndex < this.currentFullText.length) {
+                const char = this.currentFullText[charIndex];
+                this.displayedText += char;
+                textEl.textContent = this.displayedText;
+                charIndex++;
+                const delay = ['.', '!', '?', '—', '\n'].includes(char)
+                    ? 160
+                    : Math.round(1000 / this.typewriterSpeed);
+                this.typewriterTimer = setTimeout(tick, delay);
+            } else {
+                this.textComplete = true;
+                this.dialogContinue.classList.remove('hidden');
+                this._processQueue();
+            }
+        };
+
+        tick();
+    }
+
+    _skipTypewriter() {
+        this._clearTypewriter();
+        this.displayedText = this.currentFullText;
+        const textEl = this.currentMsgEl?.querySelector('.persona-text');
+        if (textEl) textEl.textContent = this.currentFullText;
+        this.textComplete = true;
+        this.dialogContinue.classList.remove('hidden');
+        this._processQueue();
+    }
+
+    _processQueue() {
+        if (this.textQueue.length > 0) {
+            const next = this.textQueue.shift();
+            if (next.type === 'send') {
+                this._addUserMessage(next.text);
+                this._streamPersonaResponse(next.text);
+            }
+        }
+    }
+
+    _clearTypewriter() {
+        if (this.typewriterTimer) {
+            clearTimeout(this.typewriterTimer);
+            this.typewriterTimer = null;
+        }
     }
 }

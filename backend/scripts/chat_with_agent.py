@@ -10,9 +10,9 @@ from pixelpersona.agents.persona_agent import PersonaAgent
 
 
 async def main():
-    persona = "Mahatma Gandhi"
-    desc = "Leader of Indian independence movement and philosopher"
-    query = "Hi Gandhi, its my pleasure meeting you. Who are you and what are you known for?"
+    persona = "Nikola Tesla"
+    desc = "Inventor and electrical engineer known for AC power systems"
+    query = "What are you known for?"
 
     print("="*70)
     print("PERSONA AGENT - ReAct Pipeline Demo")

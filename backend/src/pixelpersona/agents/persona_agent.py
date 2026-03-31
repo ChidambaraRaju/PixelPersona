@@ -127,6 +127,7 @@ Your response must:
 3. Match {self.persona_name}'s tone, style, and knowledge
 4. Never fabricate facts outside the provided context
 5. If the context doesn't contain enough information, say so clearly
+6. Do NOT prefix your response with your name - just answer directly
 
 Remember: Always use retrieve_context to find information before answering."""
 
@@ -164,4 +165,18 @@ Remember: Always use retrieve_context to find information before answering."""
         )
 
         # Extract response
-        return response["messages"][-1].content
+        raw_response = response["messages"][-1].content
+
+        # Strip persona name prefix if present (LLM often starts with "Albert Einstein:" etc.)
+        import re
+        # Remove "Persona Name" or "Persona Name:" or "Persona Name," or "Persona Name " from start
+        # Also handle "PersonaName" (no space) case
+        pattern = rf"^{re.escape(self.persona_name)}"
+        cleaned = re.sub(pattern, "", raw_response, count=1).lstrip(":, \t")
+
+        # If still starts with persona name in different format like "I am Persona" or "Persona here"
+        if cleaned.startswith(self.persona_name):
+            pattern2 = rf"^{re.escape(self.persona_name)}\s+"
+            cleaned = re.sub(pattern2, "", cleaned, count=1)
+
+        return cleaned

@@ -3,24 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PixelPersona</title>
+    <title>PixelPersona — Meet the Great Minds</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230a0a1a' width='100' height='100'/><text y='.9em' font-size='90'>★</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="game-canvas"></canvas>
+    <!-- CRT Scanline + Vignette Overlay -->
+    <div id="crt-overlay"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-inner">
+            <div class="loading-title">PIXELPERSONA</div>
+            <div class="loading-sub">Initializing world...</div>
+            <div class="loading-bar-wrap">
+                <div id="loading-bar"></div>
+            </div>
+        </div>
     </div>
 
-    <!-- Chat Modal (hidden by default) -->
-    <div id="chat-modal" class="hidden">
-        <div id="chat-header">
-            <span id="chat-persona-name"></span>
-            <button id="chat-close">&times;</button>
+    <!-- HUD Layer -->
+    <div id="hud">
+        <div id="hud-top">
+            <div id="hud-title">
+                <span class="star">★</span> PIXELPERSONA <span class="star">★</span>
+            </div>
+            <div id="controls-hint">WASD / ARROWS — MOVE &nbsp;|&nbsp; SPACE — INTERACT</div>
         </div>
-        <div id="chat-messages"></div>
-        <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Type your message...">
-            <button id="chat-send">Send</button>
+        <div id="hud-bottom">
+            <div id="npc-indicator" class="hidden">
+                <span id="npc-indicator-name"></span>
+                <span id="npc-indicator-desc"></span>
+            </div>
+            <div id="minimap">
+                <div class="minimap-label">■ MAP</div>
+                <canvas id="minimap-canvas" width="80" height="60"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Canvas Wrapper -->
+    <div id="game-wrapper">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- RPG Dialog Box -->
+        <div id="dialog-box" class="hidden">
+            <div id="dialog-inner">
+                <div id="dialog-portrait">
+                    <canvas id="portrait-canvas" width="64" height="64"></canvas>
+                </div>
+                <div id="dialog-content">
+                    <div id="dialog-name"></div>
+                    <div id="message-log"></div>
+                    <div id="dialog-continue" class="hidden">▼ PRESS SPACE TO CONTINUE</div>
+                </div>
+            </div>
+            <div id="dialog-input-area">
+                <input type="text" id="dialog-input" placeholder="Type your message..." autocomplete="off">
+                <button id="dialog-send">SEND</button>
+            </div>
         </div>
     </div>
 

@@ -3,16 +3,35 @@ export class Interaction {
         this.player = player;
         this.npcManager = npcManager;
         this.onInteract = onInteract; // callback(npc)
-        this.interactionRadius = 60; // pixels
+        this.interactionRadius = 70; // pixels
         this.nearestNPC = null;
+        // Store chatManager reference immediately — window may not be set yet
+        this._chatManager = null;
 
-        // Listen for spacebar
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && this.nearestNPC) {
+                const cm = this._getChatManager();
+                if (cm && cm.isDialogOpen()) {
+                    e.preventDefault();
+                    return;
+                }
                 e.preventDefault();
                 this.onInteract(this.nearestNPC);
+                if (window.soundManager) window.soundManager.play('interact');
             }
         });
+    }
+
+    _getChatManager() {
+        if (this._chatManager) return this._chatManager;
+        if (
+            typeof window !== 'undefined' &&
+            window.chatManager &&
+            typeof window.chatManager.isDialogOpen === 'function'
+        ) {
+            this._chatManager = window.chatManager;
+        }
+        return this._chatManager;
     }
 
     update() {
@@ -20,7 +39,7 @@ export class Interaction {
         let nearest = null;
         let nearestDist = Infinity;
 
-        this.npcManager.getNPCs().forEach(npc => {
+        for (const npc of this.npcManager.getNPCs()) {
             const npcBounds = npc.getBounds();
             const dx = playerBounds.centerX - npcBounds.centerX;
             const dy = playerBounds.centerY - npcBounds.centerY;
@@ -30,24 +49,44 @@ export class Interaction {
                 nearest = npc;
                 nearestDist = dist;
             }
-        });
+        }
 
         this.nearestNPC = nearest;
     }
 
     render(ctx) {
-        if (this.nearestNPC) {
-            const bounds = this.nearestNPC.getBounds();
+        if (!this.nearestNPC) return;
+        const cm = this._getChatManager();
+        if (cm && cm.isDialogOpen()) return;
 
-            // Draw interaction prompt above NPC
-            ctx.fillStyle = '#000';
-            ctx.font = '8px monospace';
+        const bounds = this.nearestNPC.getBounds();
+        const cx = bounds.centerX;
+
+        // Prompt box background
+        ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
+        const boxW = 80;
+        const boxH = 14;
+        ctx.fillRect(cx - boxW / 2, bounds.y - 28, boxW, boxH);
+
+        // Border
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx - boxW / 2, bounds.y - 28, boxW, boxH);
+
+        // Blinking "SPACE" text
+        const blink = Math.floor(Date.now() / 400) % 2 === 0;
+        if (blink) {
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '6px "Press Start 2P"';
             ctx.textAlign = 'center';
-            ctx.fillText('SPACE to chat', bounds.centerX, bounds.y - 15);
-
-            ctx.fillStyle = '#fff';
-            ctx.fillText('SPACE to chat', bounds.centerX - 1, bounds.y - 16);
+            ctx.fillText('SPACE', cx, bounds.y - 18);
         }
+
+        // "▼" arrow
+        ctx.fillStyle = '#ffd700';
+        ctx.font = '7px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u25BC', cx, bounds.y - 6);
     }
 
     getNearestNPC() {

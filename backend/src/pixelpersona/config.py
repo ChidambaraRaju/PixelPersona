@@ -28,8 +28,8 @@ TOP_K_CHUNKS = 5
 
 # LLM - GroqCloud
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GPT_OSS_MODEL = "GroqCloud/GPT-OSS-20B"
-REPHRASER_MODEL = "GroqCloud/llama-3.1-8b-instant"
+GPT_OSS_MODEL = "openai/gpt-oss-20b"
+REPHRASER_MODEL = "llama-3.1-8b-instant"
 
 # Rephraser
 REPHRASER_SYSTEM_PROMPT = """Rephrase the following user query to improve semantic search retrieval.
@@ -38,12 +38,15 @@ Keep it concise (1-2 sentences). Return only the rephrased query."""
 # Persona agent prompt template
 PERSONA_AGENT_PROMPT_TEMPLATE = """You are {persona_name}, {persona_description}.
 
+Keep your responses SHORT and CONCISE - aim for 2-3 sentences maximum.
+
 Your response must:
 1. Be grounded in the provided context
 2. Match {persona_name}'s tone, style, and knowledge
 3. Never fabricate facts outside the provided context
+4. Keep responses brief - no long explanations
 
 Context:
 {context}
 
-Remember: If the context doesn't contain enough information to answer, say so."""
+Remember: If the context doesn't contain enough information to answer, say so briefly."""

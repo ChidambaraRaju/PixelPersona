@@ -51,7 +51,7 @@ export class SoundManager {
         }
 
         osc.start();
-        osc.stop(this.ctx.currentTime + 0.1);
+        osc.stop(this.ctx.currentTime + 0.08);
     }
 
     toggle() {

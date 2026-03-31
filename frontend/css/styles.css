@@ -1,141 +1,434 @@
+/* ─── Google Font ─── */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* ─── CSS Variables ─── */
 :root {
-    --bg-dark: #0a0a0f;
-    --bg-panel: #1a1a2e;
+    --sky-dark: #0a0a1a;
+    --sky-mid: #1a1a3a;
+    --grass-dark: #1a2e1a;
+    --grass-light: #2a4a2a;
+    --cobblestone: #3d3d5c;
+    --cobblestone-light: #4d4d6c;
+    --path-color: #2a2a40;
+    --fountain-blue: #4a6a8a;
+    --fountain-highlight: #6a8aaa;
+    --building-dark: #2a2a40;
+    --building-window: #ffd700;
+    --lantern-amber: #f4a460;
+    --lantern-glow: #ffd700;
+    --trunk-color: #3a2a1a;
+    --foliage-dark: #1a3a1a;
+    --foliage-light: #2a5a2a;
     --accent: #00ff88;
     --accent-dim: #00aa55;
-    --text-primary: #e0e0e0;
-    --text-dim: #888;
+    --text-primary: #ffffff;
+    --text-dim: #888888;
+    --text-shadow: #000000;
+    --panel-bg: #0f0f1a;
+    --panel-border: #3d3d5c;
     --pixel-font: 'Press Start 2P', monospace;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-    background: var(--bg-dark);
-    color: var(--text-primary);
-    font-family: var(--pixel-font);
-    overflow: hidden;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+/* ─── Reset ─── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-#game-container {
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--sky-dark);
+    font-family: var(--pixel-font);
+    color: var(--text-primary);
+}
+
+/* ─── CRT Overlay ─── */
+#crt-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    /* Scanlines */
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.18) 2px,
+        rgba(0, 0, 0, 0.18) 4px
+    );
+}
+
+/* Vignette */
+#crt-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        ellipse at center,
+        transparent 55%,
+        rgba(0, 0, 0, 0.65) 100%
+    );
+}
+
+/* ─── Loading Screen ─── */
+#loading-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--sky-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: opacity 0.5s;
+}
+
+#loading-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-inner {
+    text-align: center;
+}
+
+.loading-title {
+    font-size: 20px;
+    color: var(--accent);
+    text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent);
+    margin-bottom: 24px;
+    letter-spacing: 2px;
+    animation: title-pulse 1.5s ease-in-out infinite alternate;
+}
+
+.loading-sub {
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+}
+
+.loading-bar-wrap {
+    width: 200px;
+    height: 12px;
+    border: 2px solid var(--accent);
+    padding: 2px;
+}
+
+#loading-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 6px var(--accent);
+}
+
+@keyframes title-pulse {
+    from { text-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent); }
+    to   { text-shadow: 0 0 16px var(--accent), 0 0 32px var(--accent), 0 0 48px var(--accent); }
+}
+
+/* ─── Game Wrapper ─── */
+#game-wrapper {
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
 }
 
 #game-canvas {
-    border: 4px solid var(--accent);
+    border: 4px solid var(--cobblestone);
     image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow:
+        0 0 0 2px var(--sky-dark),
+        0 0 40px rgba(0, 255, 136, 0.1),
+        inset 0 0 60px rgba(0, 0, 0, 0.3);
 }
 
-/* Chat Modal */
-#chat-modal {
+/* ─── HUD ─── */
+#hud {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 400px;
-    height: 500px;
-    background: var(--bg-panel);
-    border: 4px solid var(--accent);
-    display: flex;
-    flex-direction: column;
-    image-rendering: pixelated;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
 }
 
-#chat-modal.hidden { display: none; }
-
-#chat-header {
-    background: var(--accent);
-    color: var(--bg-dark);
-    padding: 10px;
+#hud-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 10px;
+    padding: 10px 16px;
+    background: linear-gradient(to bottom, rgba(10, 10, 26, 0.9) 0%, transparent 100%);
 }
 
-#chat-close {
-    background: none;
-    border: none;
-    color: var(--bg-dark);
-    font-size: 16px;
-    cursor: pointer;
+#hud-title {
+    font-size: 12px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent);
+    letter-spacing: 2px;
 }
 
-#chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
+.star {
+    display: inline-block;
+    animation: star-blink 1.2s step-end infinite;
+    color: var(--lantern-glow);
+}
+
+.star:last-child {
+    animation-delay: 0.6s;
+}
+
+@keyframes star-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+#controls-hint {
+    font-size: 6px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+}
+
+#hud-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 10px 16px;
+    background: linear-gradient(to top, rgba(10, 10, 26, 0.9) 0%, transparent 100%);
+}
+
+#npc-indicator {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
-.chat-message {
-    padding: 8px 12px;
-    border-radius: 4px;
-    max-width: 80%;
-    word-wrap: break-word;
+#npc-indicator-name {
+    font-size: 8px;
+    color: var(--lantern-glow);
+    text-shadow: 0 0 6px var(--lantern-glow);
 }
 
-.chat-message.user {
-    align-self: flex-end;
-    background: var(--accent-dim);
-    color: #fff;
+#npc-indicator-desc {
+    font-size: 6px;
+    color: var(--text-dim);
 }
 
-.chat-message.persona {
-    align-self: flex-start;
-    background: #3d3d5c;
+#npc-indicator.hidden {
+    visibility: hidden;
+}
+
+#minimap {
+    background: rgba(15, 15, 26, 0.85);
+    border: 2px solid var(--cobblestone);
+    padding: 4px;
+}
+
+.minimap-label {
+    font-size: 5px;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+    letter-spacing: 1px;
+}
+
+#minimap-canvas {
+    display: block;
+    image-rendering: pixelated;
+}
+
+/* ─── RPG Dialog Box ─── */
+#dialog-box {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    max-width: calc(100vw - 20px);
+    background: var(--panel-bg);
+    border: 4px solid var(--cobblestone);
+    border-bottom: none;
+    box-shadow: 0 -4px 0 var(--cobblestone-light), 0 -8px 20px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+}
+
+#dialog-box.hidden {
+    display: none;
+}
+
+#dialog-inner {
+    display: flex;
+    gap: 0;
+    padding: 12px 14px 8px;
+    min-height: 84px;
+}
+
+#dialog-portrait {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border: 2px solid var(--cobblestone);
+    margin-right: 12px;
+    background: var(--sky-dark);
+    image-rendering: pixelated;
+}
+
+#portrait-canvas {
+    display: block;
+    width: 64px;
+    height: 64px;
+    image-rendering: pixelated;
+}
+
+#dialog-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    overflow: hidden;
+}
+
+#dialog-name {
+    font-size: 8px;
+    color: var(--lantern-glow);
+    text-shadow: 0 0 4px var(--lantern-glow);
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--cobblestone);
+    padding-bottom: 4px;
+}
+
+#dialog-text {
+    font-size: 8px;
+    color: var(--text-primary);
+    line-height: 1.8;
+    min-height: 36px;
+    letter-spacing: 0.5px;
+}
+
+#message-log {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 80px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--cobblestone) transparent;
+}
+
+#message-log::-webkit-scrollbar {
+    width: 4px;
+}
+#message-log::-webkit-scrollbar-thumb {
+    background: var(--cobblestone);
+}
+
+.dialog-msg {
+    font-size: 8px;
+    line-height: 1.6;
+    letter-spacing: 0.3px;
+}
+
+.msg-user {
+    color: var(--accent-dim);
+}
+
+.msg-persona {
     color: var(--text-primary);
 }
 
-.chat-message.system {
-    align-self: center;
-    background: transparent;
-    color: var(--text-dim);
-    font-size: 8px;
+.msg-name {
+    font-size: 7px;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
 }
 
-.chat-message.typing {
-    color: var(--text-dim);
-    font-style: italic;
+.msg-user .msg-name {
+    color: var(--accent);
 }
 
-#chat-input-area {
+.msg-persona .msg-name {
+    color: var(--lantern-glow);
+}
+
+#dialog-continue {
+    font-size: 7px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    animation: blink 0.7s step-end infinite;
+    align-self: flex-end;
+}
+
+#dialog-continue.hidden {
+    display: none;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+#dialog-input-area {
     display: flex;
     gap: 8px;
-    padding: 10px;
-    border-top: 2px solid var(--accent);
+    padding: 8px 14px 12px;
+    border-top: 2px solid var(--cobblestone);
 }
 
-#chat-input {
+#dialog-input {
     flex: 1;
-    background: var(--bg-dark);
-    border: 2px solid var(--accent-dim);
+    background: var(--sky-dark);
+    border: 2px solid var(--cobblestone);
     color: var(--text-primary);
-    padding: 8px;
+    padding: 8px 10px;
     font-family: var(--pixel-font);
-    font-size: 10px;
+    font-size: 8px;
+    caret-color: var(--accent);
 }
 
-#chat-input:focus {
+#dialog-input::placeholder {
+    color: var(--text-dim);
+    font-size: 7px;
+}
+
+#dialog-input:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
 }
 
-#chat-send {
+#dialog-send {
     background: var(--accent);
-    color: var(--bg-dark);
+    color: var(--sky-dark);
     border: none;
-    padding: 8px 16px;
-    cursor: pointer;
+    padding: 8px 14px;
     font-family: var(--pixel-font);
-    font-size: 10px;
+    font-size: 8px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background 0.1s, transform 0.1s;
+    pointer-events: auto;
 }
 
-#chat-send:hover {
-    background: var(--accent-dim);
+#dialog-send:hover {
+    background: var(--lantern-glow);
+    transform: scale(1.05);
+}
+
+#dialog-send:active {
+    transform: scale(0.95);
 }

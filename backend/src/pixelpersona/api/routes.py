@@ -1,22 +1,36 @@
 """FastAPI routes for persona chat."""
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Dict, Optional
 import asyncio
+import logging
 
 from pixelpersona.models.persona import AVAILABLE_PERSONAS
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PixelPersona API")
 
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# CORS headers added to all responses via middleware
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
 
 # In-memory agent store (per V1 scope - no multi-user)
 agents: Dict[str, any] = {}
@@ -62,10 +76,15 @@ async def chat(
         )
 
     agent = agents[persona_name]
-    response = await agent.chat(
-        query=request.query,
-        thread_id=request.thread_id
-    )
+
+    try:
+        response = await agent.chat(
+            query=request.query,
+            thread_id=request.thread_id
+        )
+    except Exception as e:
+        logger.error(f"[CHAT ERROR] {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     return ChatResponse(
         persona_name=persona_name,
@@ -102,10 +121,6 @@ async def chat_stream(
     agent = agents[persona_name]
 
     async def generate():
-        # Yield persona name first
-        yield f"data: {persona_name}\n\n"
-
-        # Stream response chunks
         try:
             response = await agent.chat(
                 query=request.query,
@@ -115,10 +130,9 @@ async def chat_stream(
             for i in range(0, len(response), 50):
                 chunk = response[i:i+50]
                 yield f"data: {chunk}\n\n"
-                await asyncio.sleep(0.01)
         except Exception as e:
+            logger.error(f"[STREAM ERROR] {type(e).__name__}: {e}")
             yield f"data: [ERROR] {str(e)}\n\n"
-
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(
@@ -127,5 +141,8 @@ async def chat_stream(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
         }
     )
