@@ -35,6 +35,9 @@ export class NPC {
         this.isWalking = false;
         this.animationFrame = 0;
         this.animationTimer = 0;
+
+        // Frozen state (chatting with this NPC)
+        this.isFrozen = false;
     }
 
     changeDirection() {
@@ -47,45 +50,54 @@ export class NPC {
     }
 
     update(dt) {
-        // Direction change timer
-        this.directionTimer += dt;
-        if (this.directionTimer >= this.directionInterval) {
-            this.changeDirection();
-            this.directionTimer = 0;
-            this.directionInterval = 2000 + Math.random() * 2000;
-        }
-
-        // Move
-        const dx = this.direction.x * this.speed * (dt / 1000);
-        const dy = this.direction.y * this.speed * (dt / 1000);
-        this.x += dx;
-        this.y += dy;
-
-        this.isWalking = this.direction.x !== 0 || this.direction.y !== 0;
-
-        // Boundary collision (stay in village plaza)
-        const margin = 30;
-        if (this.x < margin) { this.x = margin; this.changeDirection(); }
-        if (this.x > 700 - this.width) { this.x = 700 - this.width; this.changeDirection(); }
-        if (this.y < 70) { this.y = 70; this.changeDirection(); }
-        if (this.y > 500 - this.height) { this.y = 500 - this.height; this.changeDirection(); }
-
-        // Bob animation (idle only)
-        if (!this.isWalking) {
-            this.bobTimer += dt;
-            if (this.bobTimer >= 30) {
-                this.bobTimer = 0;
-                this.bobOffset += this.bobDirection * 0.5;
-                if (this.bobOffset > 2 || this.bobOffset < -2) this.bobDirection *= -1;
-            }
+        if (this.isFrozen) {
+            // Frozen: stay in place, still bob
+            this.isWalking = false;
+            this._updateBob(dt);
         } else {
-            // Walk animation frame
-            this.animationTimer += dt;
-            if (this.animationTimer >= 200) {
-                this.animationFrame = (this.animationFrame + 1) % 2;
-                this.animationTimer = 0;
+            // Direction change timer
+            this.directionTimer += dt;
+            if (this.directionTimer >= this.directionInterval) {
+                this.changeDirection();
+                this.directionTimer = 0;
+                this.directionInterval = 2000 + Math.random() * 2000;
             }
-            this.bobOffset = 0;
+
+            // Move
+            const dx = this.direction.x * this.speed * (dt / 1000);
+            const dy = this.direction.y * this.speed * (dt / 1000);
+            this.x += dx;
+            this.y += dy;
+
+            this.isWalking = this.direction.x !== 0 || this.direction.y !== 0;
+
+            // Boundary collision (stay in village plaza)
+            const margin = 30;
+            if (this.x < margin) { this.x = margin; this.changeDirection(); }
+            if (this.x > 700 - this.width) { this.x = 700 - this.width; this.changeDirection(); }
+            if (this.y < 70) { this.y = 70; this.changeDirection(); }
+            if (this.y > 500 - this.height) { this.y = 500 - this.height; this.changeDirection(); }
+
+            // Walk animation frame
+            if (this.isWalking) {
+                this.animationTimer += dt;
+                if (this.animationTimer >= 200) {
+                    this.animationFrame = (this.animationFrame + 1) % 2;
+                    this.animationTimer = 0;
+                }
+                this.bobOffset = 0;
+            } else {
+                this._updateBob(dt);
+            }
+        }
+    }
+
+    _updateBob(dt) {
+        this.bobTimer += dt;
+        if (this.bobTimer >= 30) {
+            this.bobTimer = 0;
+            this.bobOffset += this.bobDirection * 0.5;
+            if (this.bobOffset > 2 || this.bobOffset < -2) this.bobDirection *= -1;
         }
     }
 

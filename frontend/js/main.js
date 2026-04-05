@@ -2,6 +2,8 @@ import { Game } from './game/Game.js';
 import { ChatManager } from './chat/ChatManager.js';
 import { SoundManager } from './game/SoundManager.js';
 
+console.log('[main.js] loading...');
+
 let game;
 let chatManager;
 let soundManager;

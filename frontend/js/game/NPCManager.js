@@ -28,6 +28,7 @@ export class NPCManager {
     constructor(ctx) {
         this.ctx = ctx;
         this.npcs = [];
+        this.frozenNPCName = null;
     }
 
     init(personas) {
@@ -55,7 +56,11 @@ export class NPCManager {
     }
 
     update(dt) {
-        this.npcs.forEach(npc => npc.update(dt));
+        // Set frozen state each frame
+        for (const npc of this.npcs) {
+            npc.isFrozen = (npc.name === this.frozenNPCName);
+            npc.update(dt);
+        }
     }
 
     render() {
@@ -70,5 +75,13 @@ export class NPCManager {
 
     getNPCByName(name) {
         return this.npcs.find(n => n.name === name) || null;
+    }
+
+    freeze(name) {
+        this.frozenNPCName = name;
+    }
+
+    unfreeze() {
+        this.frozenNPCName = null;
     }
 }

@@ -87,6 +87,7 @@ export class ChatManager {
         this._clearTypewriter();
         this.textQueue = [];
         this.dialogBox.classList.add('hidden');
+        this.dialogInput.blur(); // Remove focus so Space key works again
         if (window.soundManager) window.soundManager.play('chat');
     }
 

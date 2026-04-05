@@ -89,6 +89,7 @@ export class Game {
 
     openDialog(npc) {
         this.dialogOpen = true;
+        this.npcManager.freeze(npc.name);
         if (window.chatManager) {
             window.chatManager.open(npc);
         }
@@ -100,6 +101,7 @@ export class Game {
 
     closeDialog() {
         this.dialogOpen = false;
+        this.npcManager.unfreeze();
         this.npcIndicatorEl.classList.add('hidden');
     }
 

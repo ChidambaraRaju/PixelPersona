@@ -8,17 +8,18 @@ export class Interaction {
         // Store chatManager reference immediately — window may not be set yet
         this._chatManager = null;
 
+        let _spaceDown = false;
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && this.nearestNPC) {
-                const cm = this._getChatManager();
-                if (cm && cm.isDialogOpen()) {
-                    e.preventDefault();
-                    return;
+            if (e.code === 'Space' && !_spaceDown) {
+                _spaceDown = true;
+                if (this.nearestNPC) {
+                    this.onInteract(this.nearestNPC);
+                    if (window.soundManager) window.soundManager.play('interact');
                 }
-                e.preventDefault();
-                this.onInteract(this.nearestNPC);
-                if (window.soundManager) window.soundManager.play('interact');
             }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') _spaceDown = false;
         });
     }
 
