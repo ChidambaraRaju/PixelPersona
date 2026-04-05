@@ -41,9 +41,14 @@ export class ChatManager {
             }
         });
 
-        // Space to continue / close
+        // Space to continue / close, Escape to quit
         window.addEventListener('keydown', (e) => {
             if (!this.isDialogOpen) return;
+            if (e.code === 'Escape') {
+                e.preventDefault();
+                this.close();
+                return;
+            }
             if (e.code !== 'Space') return;
             e.preventDefault();
 

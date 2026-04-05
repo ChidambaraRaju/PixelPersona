@@ -21,6 +21,9 @@ export class Player {
         // Chat manager reference (may not be set yet)
         this._chatManager = null;
 
+        // Dialog input reference for focus check
+        this._dialogInput = document.getElementById('dialog-input');
+
         // Movement keys
         this.keys = { up: false, down: false, left: false, right: false };
 
@@ -34,8 +37,8 @@ export class Player {
 
     _setupControls() {
         window.addEventListener('keydown', (e) => {
-            const cm = this._getChatManager();
-            if (cm && cm.isDialogOpen()) return;
+            // Don't capture movement keys when chat input is focused
+            if (document.activeElement === this._dialogInput) return;
             switch (e.code) {
                 case 'ArrowUp': case 'KeyW': this.keys.up = true; break;
                 case 'ArrowDown': case 'KeyS': this.keys.down = true; break;
