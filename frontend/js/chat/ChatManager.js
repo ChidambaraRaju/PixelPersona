@@ -1,4 +1,4 @@
-import { chatStream } from '../../api/client.js';
+import { chatRequest } from '../../api/client.js';
 
 export class ChatManager {
     constructor() {
@@ -21,9 +21,8 @@ export class ChatManager {
         this.textComplete    = true;
         this.textQueue        = [];
 
-        // Stream state
-        this.streamActive    = false;
-        this.currentMsgEl    = null;   // active streaming message element
+        // Active message element for typewriter
+        this.currentMsgEl    = null;
 
         this._setupEvents();
     }
@@ -54,7 +53,7 @@ export class ChatManager {
 
             if (!this.textComplete) {
                 this._skipTypewriter();
-            } else if (this.textQueue.length === 0 && !this.streamActive) {
+            } else if (this.textQueue.length === 0) {
                 this.close();
             }
         });
@@ -64,7 +63,6 @@ export class ChatManager {
         this.currentNPC = npc;
         this.isDialogOpen = true;
         this.textQueue = [];
-        this.streamActive = false;
         this.messageLog.innerHTML = '';
 
         // Portrait
@@ -101,7 +99,7 @@ export class ChatManager {
     }
 
     _submitInput() {
-        if (!this.isDialogOpen || this.streamActive) return;
+        if (!this.isDialogOpen) return;
 
         const message = this.dialogInput.value.trim();
         if (!message) return;
@@ -116,7 +114,7 @@ export class ChatManager {
 
         // Add user message to log
         this._addUserMessage(message);
-        this._streamPersonaResponse(message);
+        this._requestPersonaResponse(message);
     }
 
     _addUserMessage(text) {
@@ -152,42 +150,29 @@ export class ChatManager {
         this._startTypewriter(textEl);
     }
 
-    _streamPersonaResponse(message) {
+    _requestPersonaResponse(message) {
         if (!this.currentNPC) return;
 
-        this.streamActive = true;
         this.dialogContinue.classList.add('hidden');
 
         const el = this._addPersonaMessage(this.currentNPC.name);
         this.currentMsgEl = el;
         const textEl = el.querySelector('.persona-text');
-
         this.currentFullText = '';
         this.displayedText = '';
         this.textComplete = false;
 
-        chatStream(
-            this.currentNPC.name,
-            message,
-            (chunk) => {
-                this.currentFullText += chunk;
-                textEl.textContent = this.currentFullText;
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            },
-            () => {
-                this.streamActive = false;
-                this.textComplete = true;
-                this.dialogContinue.classList.remove('hidden');
-                this._processQueue();
-            },
-            (error) => {
-                this.streamActive = false;
+        chatRequest(this.currentNPC.name, message)
+            .then(response => {
+                this.currentFullText = response;
+                this._startTypewriter(textEl);
+            })
+            .catch(error => {
                 this.textComplete = true;
                 textEl.textContent = `[Error: ${error}]`;
                 el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 this.dialogContinue.classList.remove('hidden');
-            }
-        );
+            });
     }
 
     _startTypewriter(textEl) {
@@ -229,7 +214,7 @@ export class ChatManager {
             const next = this.textQueue.shift();
             if (next.type === 'send') {
                 this._addUserMessage(next.text);
-                this._streamPersonaResponse(next.text);
+                this._requestPersonaResponse(next.text);
             }
         }
     }

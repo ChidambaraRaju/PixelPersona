@@ -5,6 +5,24 @@ export async function fetchPersonas() {
     return response.json();
 }
 
+export async function chatRequest(personaName, message) {
+    const response = await fetch(
+        `${API_BASE}/chat?persona_name=${encodeURIComponent(personaName)}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: message, thread_id: 'default' })
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.response;
+}
+
 export async function chatStream(personaName, message, onChunk, onDone, onError) {
     const response = await fetch(
         `${API_BASE}/chat/stream?persona_name=${encodeURIComponent(personaName)}`,

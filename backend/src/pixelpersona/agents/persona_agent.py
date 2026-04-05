@@ -42,7 +42,7 @@ class PersonaAgent:
         """Create a retrieval tool that queries Chroma for the persona."""
 
         @tool(response_format="content")
-        def retrieve_context(query: str) -> str:
+        async def retrieve_context(query: str) -> str:
             """Retrieve relevant context about the persona from the knowledge base.
 
             Use this tool to find relevant information from Wikipedia, Wikiquotes,
@@ -56,20 +56,16 @@ class PersonaAgent:
                 A string containing the retrieved context with source information.
                 If no relevant context is found, returns a message indicating that.
             """
-            import asyncio
-
             logger.info("\n" + "="*60)
             logger.info("[TOOL CALL] retrieve_context")
             logger.info("="*60)
             logger.info(f"  Query sent to retriever: {query}")
 
-            # Run the async retriever in sync context
-            results = asyncio.run(
-                self.retriever.retrieve(
-                    persona_name=self.persona_name,
-                    query=query,
-                    top_k=5
-                )
+            # Run the async retriever (tool is async, so await is valid)
+            results = await self.retriever.retrieve(
+                persona_name=self.persona_name,
+                query=query,
+                top_k=5
             )
 
             logger.info(f"  Retrieved: {len(results)} chunks")
@@ -150,7 +146,7 @@ Remember: Always use retrieve_context to find information before answering."""
         )
 
     async def chat(self, query: str, thread_id: str = "default") -> str:
-        """Chat with the persona agent."""
+        """Chat with the persona agent (non-streaming, returns full response)."""
         config = {"configurable": {"thread_id": thread_id}}
 
         # Run agent - it will use retrieve_context tool as needed
@@ -175,3 +171,23 @@ Remember: Always use retrieve_context to find information before answering."""
             cleaned = re.sub(pattern2, "", cleaned, count=1)
 
         return cleaned
+
+    async def stream_chat(self, query: str, thread_id: str = "default"):
+        """Streaming chat with the persona agent. Yields tokens as they arrive."""
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # Use astream to get incremental tokens
+        async for event in self.agent.astream(
+            {"messages": [("user", query)]},
+            config=config
+        ):
+            # Each event is a dict with messages
+            messages = event.get("messages", [])
+            for msg in messages:
+                if msg.type == "human":
+                    continue
+                if msg.type == "ai" and hasattr(msg, "content") and msg.content:
+                    yield msg.content
+
+        # Post-process: strip persona name prefix from final output
+        # (yielded already, but this gives us the cleaned final text for reference)

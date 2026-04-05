@@ -37,12 +37,11 @@ class PersonaRetriever:
         logger.info("[RETRIEVER] Starting retrieval pipeline")
         logger.info(f"  Original query: {query}")
 
-        # Skip rephrasing for speed - directly embed the query
-        # Rephrasing adds an extra LLM API call latency for marginal improvement
-        rephrased_query = query
-        logger.info(f"  Using original query (skipping rephrase for speed)")
+        # Step 1: Rephrase query to improve retrieval quality
+        rephrased_query = await self.rephraser.rephrase(query)
+        logger.info(f"  Rephrased query: {rephrased_query}")
 
-        # Step 1: Query Chroma using similarity_search
+        # Step 2: Query Chroma using similarity_search
         # The ChromaCollectionManager handles embedding internally
         docs = self.collection_manager.similarity_search(
             persona_name=persona_name,

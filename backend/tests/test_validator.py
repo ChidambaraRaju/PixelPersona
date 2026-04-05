@@ -9,37 +9,41 @@ def test_validate_required_fields_pass():
         "content": "Some content",
         "source_type": "wikipedia"
     }
-    result = validator.validate(data, required_fields=["name", "content"])
-    assert result is True
+    validator.validate(data, required_fields=["name", "content"])  # no exception = pass
 
 def test_validate_required_fields_fail():
     validator = DataValidator()
     data = {"name": "Albert Einstein"}
-    result = validator.validate(data, required_fields=["name", "content"])
-    assert result is False
+    with pytest.raises(ValidationError, match="Missing or empty required field: content"):
+        validator.validate(data, required_fields=["name", "content"])
 
 def test_validate_required_fields_empty_string():
     validator = DataValidator()
     data = {"name": "", "content": "Some content"}
-    result = validator.validate(data, required_fields=["name", "content"])
-    assert result is False
+    with pytest.raises(ValidationError, match="Missing or empty required field: name"):
+        validator.validate(data, required_fields=["name", "content"])
 
 def test_validate_content_not_corrupt():
     validator = DataValidator()
-    # Valid content (10+ words)
-    assert validator.validate_content("Normal text content that has enough words to pass validation") is True
-    # Corrupt: mostly non-printable characters
+    validator.validate_content("Normal text content that has enough words to pass validation")
+
+def test_validate_content_corrupt_non_printable():
+    validator = DataValidator()
     corrupt = "\x00\x01\x02" * 100
-    assert validator.validate_content(corrupt) is False
+    with pytest.raises(ValidationError, match="more than 50% non-printable"):
+        validator.validate_content(corrupt)
 
 def test_validate_content_too_short():
     validator = DataValidator()
-    # Too few words
-    assert validator.validate_content("Hi") is False
-    # Exactly 10 words should pass
-    ten_words = "one two three four five six seven eight nine ten"
-    assert validator.validate_content(ten_words) is True
+    with pytest.raises(ValidationError, match="fewer than 10 words"):
+        validator.validate_content("Hi")
 
 def test_validate_content_whitespace_only():
     validator = DataValidator()
-    assert validator.validate_content("   \n\t   ") is False
+    with pytest.raises(ValidationError, match="too short, empty, or whitespace only"):
+        validator.validate_content("   \n\t   ")
+
+def test_validate_content_exactly_ten_words():
+    validator = DataValidator()
+    ten_words = "one two three four five six seven eight nine ten"
+    validator.validate_content(ten_words)  # exactly 10 words should pass
