@@ -65,7 +65,7 @@ class PersonaAgent:
             results = await self.retriever.retrieve(
                 persona_name=self.persona_name,
                 query=query,
-                top_k=5
+                top_k=3
             )
 
             logger.info(f"  Retrieved: {len(results)} chunks")
