@@ -161,6 +161,7 @@ export class ChatManager {
         this.currentFullText = '';
         this.displayedText = '';
         this.textComplete = false;
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         chatRequest(this.currentNPC.name, message)
             .then(response => {
@@ -184,6 +185,7 @@ export class ChatManager {
                 const char = this.currentFullText[charIndex];
                 this.displayedText += char;
                 textEl.textContent = this.displayedText;
+                this.currentMsgEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 charIndex++;
                 const delay = ['.', '!', '?', '—', '\n'].includes(char)
                     ? 160
