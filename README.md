@@ -1,5 +1,7 @@
 # PixelPersona — Meet the Great Minds
 
+![PixelPersona UI](image/pixelpersona.png)
+
 An interactive RAG-powered chatbot wrapped in a retro 2D browser game. Walk up to historical figures wandering a pixel-art village and chat with them in real-time — responses are grounded in their actual biographies, quotes, and writings.
 
 ---
@@ -19,11 +21,11 @@ Browser (Frontend)          FastAPI (Backend)              External Services
 
 **Request flow:**
 1. User sends message from chat modal in browser
-2. `POST /chat/stream` receives the query via SSE
+2. `POST /chat` receives the query
 3. LangGraph ReAct agent decides whether to retrieve from knowledge base
-4. If retrieval is needed: query embedding → Chroma similarity search → top-k chunks
+4. If retrieval is needed: query rephrased → embedding → Chroma similarity search → top-k chunks
 5. Retrieved context is injected into the prompt; LLM generates persona-grounded response
-6. Response is streamed back to the frontend via Server-Sent Events (SSE)
+6. Response is returned as JSON
 
 ---
 
@@ -67,62 +69,71 @@ Browser (Frontend)          FastAPI (Backend)              External Services
 pixelpersona/
 ├── backend/
 │   ├── src/pixelpersona/
+│   │   ├── __init__.py
+│   │   ├── main.py                  # `uvicorn pixelpersona.api:app` entry point
+│   │   ├── config.py                # Environment variables, model names, chunk sizes
 │   │   ├── agents/
-│   │   │   └── persona_agent.py      # ReAct agent per persona + retrieve_context tool
+│   │   │   ├── __init__.py
+│   │   │   └── persona_agent.py     # ReAct agent per persona + retrieve_context tool
 │   │   ├── api/
-│   │   │   └── routes.py             # FastAPI endpoints: /health, /personas, /chat, /chat/stream
-│   │   ├── config.py                  # Environment variables, model names, chunk sizes
+│   │   │   ├── __init__.py
+│   │   │   └── routes.py            # FastAPI endpoints: /health, /personas, /chat
 │   │   ├── models/
-│   │   │   └── persona.py             # Persona dataclass + AVAILABLE_PERSONAS registry
+│   │   │   ├── __init__.py
+│   │   │   └── persona.py          # Persona dataclass + AVAILABLE_PERSONAS registry
 │   │   ├── processing/
-│   │   │   ├── chunker.py             # RecursiveCharacterTextSplitter (3000 chars, 300 overlap)
-│   │   │   ├── embedder.py             # HuggingFaceEmbeddings → BAAI/bge-small-en-v1.5
-│   │   │   └── validator.py            # Content quality checks
+│   │   │   ├── __init__.py
+│   │   │   ├── chunker.py          # RecursiveCharacterTextSplitter (3000 chars, 300 overlap)
+│   │   │   ├── embedder.py         # HuggingFaceEmbeddings → BAAI/bge-small-en-v1.5
+│   │   │   └── validator.py       # Content quality checks
 │   │   ├── retrieval/
-│   │   │   ├── rephraser.py           # QueryRephraser using llama-3.1-8b-instant
-│   │   │   └── retriever.py           # Chroma similarity search pipeline
+│   │   │   ├── __init__.py
+│   │   │   ├── rephraser.py       # QueryRephraser using llama-3.1-8b-instant
+│   │   │   └── retriever.py       # Chroma similarity search pipeline
 │   │   ├── scraping/
-│   │   │   ├── wikipedia.py           # Wikipedia-API scraper
-│   │   │   └── wikiquote.py           # Wikiquote API scraper
+│   │   │   ├── __init__.py
+│   │   │   ├── wikipedia.py       # Wikipedia-API scraper
+│   │   │   └── wikiquote.py       # Wikiquote API scraper
 │   │   └── storage/
-│   │       └── chroma_client.py       # ChromaCollectionManager + PersonaVectorStore
+│   │       ├── __init__.py
+│   │       └── chroma_client.py   # ChromaCollectionManager + PersonaVectorStore
 │   ├── scripts/
-│   │   ├── ingest_persona.py         # CLI: load raw data → chunk → embed → store in Chroma
-│   │   ├── scrape_persona.py         # CLI: scrape Wikipedia/Wikiquote for a persona
-│   │   ├── chat_with_agent.py         # Debug CLI to chat with an agent directly
-│   │   ├── test_retrieval.py          # Debug script to trace retrieval pipeline
-│   │   └── test_full_pipeline.py      # Debug script to trace full agent pipeline
-│   ├── tests/                         # pytest suite (models, chunker, API, integration, etc.)
-│   ├── data/raw/                       # Scraped persona data (JSON/TXT, gitignored)
-│   ├── chroma_data/                    # Chroma persistent storage (gitignored)
-│   ├── venv/                           # Python virtual environment (gitignored)
+│   │   ├── ingest_persona.py      # CLI: load raw data → chunk → embed → store in Chroma
+│   │   ├── scrape_persona.py      # CLI: scrape Wikipedia/Wikiquote for a persona
+│   │   ├── chat_with_agent.py     # Debug CLI to chat with an agent directly
+│   │   ├── test_retrieval.py     # Debug script to trace retrieval pipeline
+│   │   └── test_full_pipeline.py  # Debug script to trace full agent pipeline
+│   ├── tests/                    # pytest suite (models, chunker, API, integration, etc.)
+│   ├── data/raw/                 # Scraped persona data (Wikipedia + Wikiquote JSON)
+│   ├── chroma_data/              # Chroma persistent vector storage
+│   ├── venv/                    # Python virtual environment (gitignored)
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
-│   ├── index.html                     # Single-page app entry point
+│   ├── index.html               # Single-page app entry point
 │   ├── css/
-│   │   └── styles.css                # Retro styling, HUD, dialog box, minimap
+│   │   └── styles.css           # Retro styling, HUD, dialog box, minimap
 │   ├── js/
-│   │   ├── main.js                   # Bootstrap: init Game + ChatManager
+│   │   ├── main.js              # Bootstrap: init Game + ChatManager
 │   │   ├── game/
-│   │   │   ├── Game.js              # Main loop, canvas setup, NPC init from /personas
-│   │   │   ├── World.js             # Village rendering (plaza, paths, trees, buildings)
-│   │   │   ├── Player.js            # WASD/arrow movement, collision, step sound
-│   │   │   ├── NPC.js               # Wander AI, bob animation, portrait rendering
-│   │   │   ├── NPCManager.js        # Y-sorted NPC rendering, proximity tracking
-│   │   │   ├── Interaction.js      # Proximity detection, SPACE to interact prompt
-│   │   │   ├── SoundManager.js      # Web Audio API: step, chat, interact sounds
-│   │   │   └── Renderer.js          # Sprite rendering utilities (upgrade path)
+│   │   │   ├── Game.js          # Main loop, canvas setup, NPC init from /personas
+│   │   │   ├── World.js         # Village rendering (plaza, paths, trees, buildings)
+│   │   │   ├── Player.js        # WASD/arrow movement, collision, step sound
+│   │   │   ├── NPC.js           # Wander AI, bob animation, portrait rendering
+│   │   │   ├── NPCManager.js    # Y-sorted NPC rendering, proximity tracking
+│   │   │   ├── Interaction.js   # Proximity detection, SPACE to interact prompt
+│   │   │   ├── SoundManager.js  # Web Audio API: step, chat, interact sounds
+│   │   │   └── Renderer.js      # Sprite rendering utilities
 │   │   └── chat/
-│   │       └── ChatManager.js       # Dialog box, typewriter effect, SSE streaming
+│   │       └── ChatManager.js   # Dialog box, typewriter effect, streaming response
 │   ├── api/
-│   │   └── client.js                # fetchPersonas() + chatStream() wrapper
+│   │   └── client.js            # fetchPersonas() + chatRequest() wrapper
 │   └── assets/
 │       └── sprites/
-│           └── README.md             # Placeholder for pixel art sprites
+│           └── README.md        # Placeholder for pixel art sprites
 ├── docs/
-│   └── plans/                        # Implementation plans (backend + frontend)
-├── CLAUDE.md                         # Project instructions for Claude Code
+│   └── plans/                   # Implementation plans (backend + frontend)
+├── CLAUDE.md                    # Project instructions for Claude Code
 └── README.md
 ```
 
@@ -154,7 +165,7 @@ cp .env.example .env
 
 # Run the server
 cd src
-python -m pixelpersona.main
+python -m uvicorn pixelpersona.api:app --host 0.0.0.0 --port 8000 --reload
 # API available at http://localhost:8000
 # Swagger docs at http://localhost:8000/docs
 ```
@@ -196,12 +207,11 @@ python scripts/ingest_persona.py "Albert Einstein"
 | `GET` | `/health` | Health check |
 | `GET` | `/personas` | List all available personas |
 | `POST` | `/chat` | Non-streaming chat (returns JSON) |
-| `POST` | `/chat/stream` | Streaming chat via SSE |
 
-### `/chat/stream` Request
+### `/chat` Request
 
 ```
-POST /chat/stream?persona_name=Albert%20Einstein
+POST /chat?persona_name=Albert%20Einstein
 Content-Type: application/json
 
 {
@@ -210,14 +220,14 @@ Content-Type: application/json
 }
 ```
 
-### SSE Response Format
+### Response
 
+```json
+{
+  "persona_name": "Albert Einstein",
+  "response": "War is a relic of barbarism..."
+}
 ```
-data: Hello!    data: That's a    data: profound
-data:  question. data: ...        data: [DONE]
-```
-
-Each `data:` line contains a 50-character chunk of the response. `[DONE]` signals the stream has ended. `[ERROR]` signals a failure.
 
 ---
 
@@ -243,9 +253,12 @@ The persona agent uses a **ReAct loop** (Reason → Act → Observe):
 
 1. User query arrives
 2. LLM decides: should I use `retrieve_context` tool?
-3. If yes: query is embedded → Chroma searched → top-5 chunks returned as context
-4. LLM generates response grounded only in the retrieved context
-5. Response streamed back via SSE
+3. Retrieval is **selective** — the agent only calls `retrieve_context` for personal/biographical questions (birth, family, achievements, inventions, quotes, speeches). General knowledge, opinions, philosophy, and casual conversation are answered directly from the LLM's own knowledge without retrieval.
+4. If yes: query is rephrased → embedded → Chroma searched → top-3 chunks returned as context
+5. LLM generates response grounded only in the retrieved context
+6. Response returned as JSON
+
+The `TOP_K_CHUNKS` config defaults to **5** in `config.py`, but the agent explicitly requests **top-3** chunks per query.
 
 Agents are **lazy-loaded** — the first time a persona is queried, its `PersonaAgent` instance is created and cached in memory for the lifetime of the server process.
 
