@@ -1,0 +1,18 @@
+CLAUDE.md
+.gitignore
+.env
+backend-idea.md
+backend_analysis.md
+docs/
+
+# Claude Code
+.claude/
+backend/.claude/
+
+# Python bytecode cache
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+backend/venv/
